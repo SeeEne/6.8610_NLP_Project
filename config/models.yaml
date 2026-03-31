@@ -1,0 +1,36 @@
+# OpenAI
+gpt-5.4: openai/gpt-5.4
+gpt-5.4-pro: openai/gpt-5.4-pro
+gpt-5.4-mini: openai/gpt-5.4-mini
+
+# Anthropic
+claude-opus: anthropic/claude-opus-4.6
+claude-sonnet: anthropic/claude-sonnet-4.6
+claude-haiku: anthropic/claude-haiku-4.5
+
+# Google
+gemini-3.1-pro: google/gemini-3.1-pro
+gemini-3.1-flash: google/gemini-3.1-flash
+gemini-3.1-flash-lite: google/gemini-3.1-flash-lite
+
+# DeepSeek
+deepseek-v3.2: deepseek/deepseek-v3.2
+deepseek-v3.2-speciale: deepseek/deepseek-v3.2-speciale
+deepseek-r1-2026: deepseek/deepseek-r1-0528
+
+# Qwen
+qwen-3.6-plus: qwen/qwen-3.6-plus-preview
+qwen-3.5-coder: qwen/qwen-3.5-coder-480b
+
+# MiniMax (New SOTA for efficiency/coding)
+minimax-m2.7: minimax/minimax-m2.7
+minimax-m2.5: minimax/minimax-m2.5
+
+# Grok (xAI)
+grok-4.20: x-ai/grok-4.20-beta
+grok-4.20-search: x-ai/grok-4.20-web-search
+
+# GLM (Zhipu AI / Z.ai)
+glm-5-turbo: z-ai/glm-5-turbo
+glm-4.7-plus: z-ai/glm-4.7-plus
+glm-4.5-air: z-ai/glm-4.5-air
