@@ -1,0 +1,26 @@
+[project]
+name = "ambicode-eval"
+version = "0.1.0"
+description = "AmbiCode-Eval: Quantifying the Impact of Linguistic Ambiguity on LLM Code Generation"
+requires-python = ">=3.9"
+dependencies = [
+    "openai>=1.0",       # OpenRouter uses OpenAI-compatible API
+    "docker>=7.0",
+    "pydantic>=2.0",
+    "python-dotenv>=0.19",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+]
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]
