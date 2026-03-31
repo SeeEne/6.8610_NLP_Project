@@ -22,21 +22,35 @@ Docker must be running for sandbox execution.
 ## Architecture
 
 ```
-src/util/
-├── llm.py      # Unified LLM client — OpenRouter (OpenAI-compatible API)
-│                 ModelConfig for per-call params, MODEL_REGISTRY for aliases
-│                 Supports temperature sampling (n>1) for pass@k
-└── sandbox.py  # Docker-based Python sandbox — no network, mem/pid limits
-                  run() for code+tests, run_dual_blind() for Test-A/Test-B,
-                  validate_quality_gate_a() for Stage A mechanical check
+src/
+├── data/
+│   ├── model.py    # BenchmarkTask — unified schema across all sources
+│   ├── loaders.py  # Per-source loaders (HumanEval, MBPP, DS-1000) via HuggingFace
+│   └── store.py    # BenchmarkStore — load, filter, save/reload from JSONL
+├── util/
+│   ├── llm.py      # Unified LLM client — OpenRouter (OpenAI-compatible API)
+│   └── sandbox.py  # Docker-based Python sandbox — no network, mem/pid limits
+config/
+└── models.yaml     # Model alias → OpenRouter ID registry
+scripts/
+└── download_data.py  # Download all benchmarks to data/raw/
+docs/
+└── data_guide.md     # Guide for Steps 1.2–1.5 (perturbation, tests, quality gate)
 ```
+
+### Data Layer (`src/data/`)
+
+- `BenchmarkTask` — unified dataclass: `task_id`, `prompt`, `canonical_solution`, `test_code`, etc.
+- Loaders normalise HumanEval (164), MBPP-sanitized (257), DS-1000 (1000) into the same schema
+- `BenchmarkStore` — in-memory store with `filter(source=, library=)`, `save()` to JSONL, `load_local()` from JSONL
+- Raw data lives in `data/raw/` (gitignored, regenerated via `scripts/download_data.py`)
 
 ### LLM Client (`src/util/llm.py`)
 
 - Uses OpenRouter as the single gateway to all model families
-- `MODEL_REGISTRY` maps short aliases (e.g. `"gpt-4o"`) to OpenRouter model IDs
+- Model aliases configured in `config/models.yaml`
 - `LLMClient.call()` returns `LLMResponse` with `choices` list (one per `n`)
-- To add a new model: add an entry to `MODEL_REGISTRY`
+- To add a new model: add an entry to `config/models.yaml`
 
 ### Sandbox (`src/util/sandbox.py`)
 
