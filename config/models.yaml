@@ -9,8 +9,8 @@ claude-sonnet: anthropic/claude-sonnet-4.6
 claude-haiku: anthropic/claude-haiku-4.5
 
 # Google
-gemini-3.1-pro: google/gemini-3.1-pro
-gemini-3.1-flash: google/gemini-3.1-flash
+gemini-3.1-pro: google/gemini-3.1-pro-preview
+gemini-3-flash: google/gemini-3-flash-preview
 gemini-3.1-flash-lite: google/gemini-3.1-flash-lite
 
 # DeepSeek
@@ -19,6 +19,7 @@ deepseek-v3.2-speciale: deepseek/deepseek-v3.2-speciale
 deepseek-r1-2026: deepseek/deepseek-r1-0528
 
 # Qwen
+qwen-3.5: qwen/qwen3.5-flash-02-23
 qwen-3.6-plus: qwen/qwen-3.6-plus-preview
 qwen-3.5-coder: qwen/qwen-3.5-coder-480b
 

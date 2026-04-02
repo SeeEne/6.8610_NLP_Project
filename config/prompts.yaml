@@ -1,0 +1,111 @@
+# ============================================================================
+# AmbiCode-Eval — Centralized Prompt Registry
+# All system prompts and task prompts live here.
+# ============================================================================
+
+# ── Phase 1: Anchor Selection & Ambiguity Injection ─────────────────────────
+
+anchor_selection:
+
+  # Shared context injected into all Phase 1 prompts
+  ambiguity_definitions: |
+    Here are the 5 types of linguistic ambiguity relevant to code generation:
+
+    1. COREFERENTIAL: A pronoun or definite noun phrase whose referent is grammatically ambiguous across two plausible antecedents. The ambiguity arises from unclear anaphoric resolution — the same pronoun ('it', 'them', 'the result') could bind to either of two previously mentioned entities, yielding logically distinct operations.
+
+    2. SYNTACTIC: A modifier phrase — typically a prepositional phrase, relative clause, or adjunct — that can syntactically attach to two different constituents in the sentence, yielding distinct logical scopes. The attachment site determines which noun or verb phrase the modifier constrains.
+
+    3. SCOPAL: A quantifier, distributive operator, or numerical expression whose scope ordering relative to another operator is underdetermined. Wide-scope and narrow-scope readings produce distinct execution semantics — typically the difference between a global constraint shared across items and a per-item constraint applied independently.
+
+    4. COLLECTIVE_DISTRIBUTIVE: An operation described over a set where it is unclear whether it applies jointly to the set as a whole (collective reading) or individually and independently to each member (distributive reading). The two readings produce different data flow and partitioning semantics.
+
+    5. ELLIPTICAL: A verb phrase or predicate is omitted (elided) and must be recovered by the reader. The elided content is inferable under one reading but absent under another, producing two valid completions with different operational semantics. Ellipsis is particularly disruptive in code generation because the missing predicate directly determines what transformation is applied.
+
+  # Combined evaluation: Ambiguity + Risk + Feasibility in a single call
+  combined_evaluation:
+    system: |
+      You are an expert linguist and software engineer evaluating coding prompts for an ambiguity benchmark.
+      You will perform 3 evaluations in a single response. Answer all questions strictly and honestly.
+      Respond ONLY with valid JSON matching the required schema. No extra text before or after the JSON.
+
+    task: |
+      Evaluate the following coding prompt for: (A) ambiguity potential, (B) risk level, and (C) benchmark feasibility.
+
+      {ambiguity_definitions}
+
+      ## Coding Prompt
+      ```
+      {prompt}
+      ```
+
+      ## Canonical Solution
+      ```
+      {canonical_solution}
+      ```
+
+      ## Existing Tests
+      ```
+      {test_code}
+      ```
+
+      ---
+
+      ## Part A — Ambiguity Classification
+
+      For EACH of the 5 ambiguity types, answer 3 diagnostic questions (true/false):
+      - Q1 STRUCTURAL FIT: Does the prompt have (or could naturally contain) the linguistic structure for this type?
+      - Q2 NATURAL PHRASING: Can the perturbation sound natural and realistic?
+      - Q3 CODE DIVERGENCE: Would the two interpretations produce meaningfully different code?
+
+      Also provide a perturbation_sketch (1 sentence) or "" if not feasible.
+
+      ## Part B — Risk Assessment
+
+      Answer 4 questions (true/false):
+      - Q1 IRREVERSIBILITY: Hard-to-undo operations (deletion, overwriting)?
+      - Q2 EXTERNAL STATE: Modifies shared/external state (files, databases, network)?
+      - Q3 SECURITY SENSITIVITY: Could cause security issues?
+      - Q4 DATA INTEGRITY: Could cause silent data corruption/loss?
+
+      RULE: ANY true → "high". ALL false → "low".
+
+      ## Part C — Feasibility Scoring
+
+      Score 5 dimensions (true/false):
+      - D1 MULTI-ENTITY: 2+ entities a modifier could ambiguously bind to?
+      - D2 STRUCTURAL COMPLEXITY: Solution is non-trivial (not a one-liner)?
+      - D3 TESTABILITY: Two interpretations produce distinguishable test outputs?
+      - D4 NATURAL PERTURBATION: Ambiguity injectable without sounding contrived?
+      - D5 INTERPRETATION DIVERGENCE: Different code paths required?
+
+      feasibility_score = count of true dimensions (0–5).
+
+      ## Example
+
+      For "Write a function that merges dict_a into dict_b and returns it" with a multi-line merge solution:
+
+      ```json
+      {{"ambiguity": {{"coreferential": {{"q1_structural_fit": true, "q2_natural_phrasing": true, "q3_code_divergence": true, "perturbation_sketch": "'returns it' — 'it' could refer to dict_a or dict_b"}}, "syntactic": {{"q1_structural_fit": false, "q2_natural_phrasing": false, "q3_code_divergence": false, "perturbation_sketch": ""}}, "scopal": {{"q1_structural_fit": false, "q2_natural_phrasing": false, "q3_code_divergence": false, "perturbation_sketch": ""}}, "collective_distributive": {{"q1_structural_fit": false, "q2_natural_phrasing": false, "q3_code_divergence": false, "perturbation_sketch": ""}}, "elliptical": {{"q1_structural_fit": false, "q2_natural_phrasing": false, "q3_code_divergence": false, "perturbation_sketch": ""}}}}, "risk": {{"q1_irreversibility": false, "q2_external_state": false, "q3_security_sensitivity": false, "q4_data_integrity": false, "risk_level": "low", "rationale": "Pure in-memory dict operation."}}, "feasibility": {{"d1_multi_entity": true, "d2_structural_complexity": true, "d3_testability": true, "d4_natural_perturbation": true, "d5_interpretation_divergence": true, "feasibility_score": 5, "rationale": "Two dicts with pronoun 'it' — ideal for coreferential ambiguity."}}}}
+      ```
+
+      ## Your Response
+
+      Now evaluate the coding prompt above. Respond with ONLY a JSON object in the same format:
+
+
+# ── Phase 2: Inference (placeholder) ────────────────────────────────────────
+
+# inference:
+#   clean_prompt:
+#     system: ...
+#     task: ...
+#   perturbed_prompt:
+#     system: ...
+#     task: ...
+
+# ── Phase 3: Classification (placeholder) ───────────────────────────────────
+
+# classification:
+#   sa_ea_ac_judge:
+#     system: ...
+#     task: ...

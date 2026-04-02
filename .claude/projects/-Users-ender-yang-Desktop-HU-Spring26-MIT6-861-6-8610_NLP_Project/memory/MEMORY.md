@@ -1,0 +1,3 @@
+- [User profile](user_profile.md) — MIT 6.8610 NLP project team, prefers running tests themselves
+- [No auto-run](feedback_no_auto_run.md) — Don't run pipeline scripts; provide the command instead
+- [Project status](project_status.md) — Phase 1 anchor selection complete, next: run full batch + perturbation
