@@ -1,0 +1,33 @@
+# ============================================================================
+# AmbiCode-Eval — Pipeline Configuration
+# ============================================================================
+
+anchor_selection:
+  # Models used for anchor evaluation (3 randomly sampled per task)
+  # These should be diverse across families to avoid bias
+  judge_models:
+    - gpt-5.4-mini
+    - claude-haiku
+    - gemini-3-flash
+    - deepseek-v3.2
+    - qwen-3.5
+    - minimax-m2.5
+
+  # How many judges per task (randomly sampled from judge_models)
+  judges_per_task: 5
+
+  # LLM call parameters for judge calls
+  temperature: 0.0
+  max_tokens: 2048
+
+  # Sources to include in anchor selection
+  sources:
+    - humaneval
+    - mbpp
+    - ds1000    # uncomment to include DS-1000
+
+  # Concurrency
+  max_workers: 12    # parallel tasks processed at once
+
+  # Output
+  output_dir: data/intermediate/anchor_selection
