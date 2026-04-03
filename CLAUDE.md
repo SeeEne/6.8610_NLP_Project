@@ -30,23 +30,35 @@ src/
 │   └── store.py        # BenchmarkStore — load, filter, save/reload from JSONL
 ├── pipeline/
 │   ├── prompts.py      # Prompt loader — reads from config/prompts.yaml
-│   └── anchor_selection.py  # Phase 1 anchor scoring pipeline
+│   ├── anchor_selection.py  # Phase 1 anchor scoring pipeline
+│   ├── perturbation.py      # Shared: ambiguity type defs, anchor loading/selection
+│   ├── stage1_perturbation.py   # Stage 1: SOTA models generate perturbed prompts
+│   ├── stage2_entropy_gate.py   # Stage 2: judge models vote → entropy filter
+│   ├── stage3_test_generation.py # Stage 3: generate ref_solution_b + test_b
+│   └── stage4_exclusivity_gate.py # Stage 4: Docker sandbox 2×2 verification
 ├── util/
 │   ├── llm.py          # Unified LLM client — OpenRouter (OpenAI-compatible API)
-│   └── sandbox.py      # Docker-based Python sandbox — no network, mem/pid limits
+│   ├── sandbox.py      # Docker-based Python sandbox — no network, mem/pid limits
+│   ├── parsing.py      # Shared JSON extraction from LLM responses
+│   └── pipeline_runner.py  # Generic concurrent pipeline runner with JSONL output
 config/
 ├── models.yaml         # Model alias → OpenRouter ID registry
 ├── pipeline.yaml       # Pipeline parameters (judge models, concurrency, etc.)
 └── prompts.yaml        # All system/task prompts (single source of truth)
 scripts/
 ├── download_data.py    # Download all benchmarks to data/raw/
-└── run_anchor_selection.py  # Run anchor selection pipeline
+├── run_anchor_selection.py  # Run anchor selection pipeline
+└── run_perturbation.py      # Run 4-stage perturbation pipeline
+docker/
+└── ds1000.Dockerfile   # Docker image with data science packages for DS1000
 docs/
-└── data_guide.md       # Full pipeline guide for all phases
+├── data_guide.md       # Full pipeline guide for all phases
+├── benchmark_guide.md  # Benchmark item format + downstream usage
+└── project_status.md   # Current status, known issues, scaling plan
 data/
 ├── raw/                # Downloaded benchmark JSONL (gitignored)
-├── intermediate/       # Pipeline intermediate outputs (anchor scoring results)
-└── benchmark/          # Final benchmark items (Phase 1 deliverable)
+├── intermediate/       # Pipeline intermediate outputs (gitignored)
+└── benchmark/          # Final benchmark items (benchmark.jsonl tracked in git)
 ```
 
 ### Key Design Decisions
@@ -68,6 +80,11 @@ data/
 
 - `prompts.py` — `get_prompt(path)`, `render_prompt(path, **vars)`, `load_pipeline_config()`
 - `anchor_selection.py` — scores each anchor with N judges via combined evaluation call; aggregates into `AnchorResult`; writes to JSONL incrementally with progress tracking
+- `perturbation.py` — shared constants (`AMBIGUITY_TYPE_DEFS`), `load_anchor_results()`, `select_anchors()`
+- `stage1_perturbation.py` — SOTA models generate perturbed_prompt + interpretation_a + interpretation_b
+- `stage2_entropy_gate.py` — judge models vote A/B on perturbed prompts, compute Shannon entropy, filter H >= 0.72
+- `stage3_test_generation.py` — generate ref_solution_b + test_b for entropy-passed items
+- `stage4_exclusivity_gate.py` — Docker sandbox runs 2×2 matrix (ref_a/b × test_a/b), all 4 must hold
 
 ### LLM Client (`src/util/llm.py`)
 
@@ -94,6 +111,10 @@ data/
 ## Current Status
 
 - **Phase 1 Step 1.1 (Raw Data)**: DONE — 1,421 tasks downloaded to `data/raw/`
-- **Phase 1 Step 1.1b (Anchor Selection)**: DONE — pipeline built, tested, ready for full run
-- **Phase 1 Steps 1.2–1.5 (Perturbation)**: NOT STARTED — manual/semi-manual work by team
+- **Phase 1 Step 1.1b (Anchor Selection)**: DONE — 1,421 tasks scored in `data/intermediate/anchor_selection/`
+- **Phase 1 Steps 1.2–1.5 (Perturbation Pipeline)**: IN PROGRESS — 4-stage automated pipeline built
+  - 14 verified benchmark items from MBPP in `data/benchmark/benchmark.jsonl`
+  - DS1000 sandbox adapter needed (blocks high-risk items + scopal/elliptical types)
+  - HumanEval has 0% Stage 4 pass rate (docstring examples + thorough tests block ambiguity)
+  - See `docs/project_status.md` for full details
 - **Phases 2–5**: NOT STARTED — infrastructure (LLM client, sandbox) is ready

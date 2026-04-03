@@ -1,3 +1,5 @@
-- [User profile](user_profile.md) — MIT 6.8610 NLP project team, prefers running tests themselves
-- [No auto-run](feedback_no_auto_run.md) — Don't run pipeline scripts; provide the command instead
-- [Project status](project_status.md) — Phase 1 anchor selection complete, next: run full batch + perturbation
+- [User profile](user_profile.md) — Ender Yang, MIT 6.8610 NLP project lead, Anaconda env, macOS
+- [No auto-run](feedback_no_auto_run.md) — Provide pipeline commands, let user run them (cost awareness)
+- [Separate stage files](feedback_separate_stages.md) — Each stage in its own .py, shared code in util/
+- [Keep tests rigorous](feedback_keep_tests_rigorous.md) — Don't shorten test suites to save tokens
+- [Project status](project_status.md) — 4-stage pipeline built, 14 verified items, DS1000 + HumanEval blockers
