@@ -6,3 +6,5 @@ dist/
 build/
 .pytest_cache/
 data/
+!data/benchmark/
+!data/benchmark/benchmark.jsonl

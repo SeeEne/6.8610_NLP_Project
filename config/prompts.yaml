@@ -93,6 +93,207 @@ anchor_selection:
       Now evaluate the coding prompt above. Respond with ONLY a JSON object in the same format:
 
 
+# ── Phase 1 Step 1.2: Perturbation Generation (Stage 1) ────────────────────
+
+perturbation:
+
+  system: |
+    You are an expert linguist and software engineer. Your job is to inject a specific type of linguistic ambiguity into a coding prompt, producing TWO valid but distinct interpretations.
+
+    You must produce output that is:
+    1. Linguistically natural — the ambiguity should read like a real, plausible prompt a developer might write.
+    2. Semantically divergent — the two interpretations must lead to meaningfully different code.
+    3. Testable — each interpretation must be verifiable with unit tests that distinguish them.
+
+    You MUST respond with ONLY a single valid JSON object. No explanation, no markdown fences, no extra text.
+
+    ## Required JSON Schema
+
+    {{
+      "type": "object",
+      "required": ["perturbed_prompt", "interpretation_a", "interpretation_b"],
+      "properties": {{
+        "perturbed_prompt": {{ "type": "string", "description": "Full rewritten prompt with injected ambiguity. Must preserve the original function signature." }},
+        "interpretation_a": {{ "type": "string", "description": "ONE sentence: interpretation A (the original meaning matching canonical solution)." }},
+        "interpretation_b": {{ "type": "string", "description": "ONE sentence: interpretation B (the new alternative meaning from the ambiguity)." }}
+      }},
+      "additionalProperties": false
+    }}
+
+  task: |
+    ## Task
+
+    Inject **{ambiguity_type}** ambiguity into the following coding prompt.
+
+    {ambiguity_type_definition}
+
+    ## Original Clean Prompt
+    ```
+    {prompt}
+    ```
+
+    ## Canonical Solution
+    ```
+    {canonical_solution}
+    ```
+
+    ## Perturbation Hints (from prior analysis)
+    Best ambiguity type: {best_ambiguity_type}
+    Sketches from judges:
+    {perturbation_sketches}
+
+    ## Instructions
+
+    Interpretation A MUST match the canonical solution's behavior.
+
+    CRITICAL rules for creating effective ambiguity:
+    - Both interpretations must feel EQUALLY natural to a developer reading the prompt cold. If one reading is obviously dominant, the ambiguity is too weak.
+    - The ambiguity must come from the linguistic structure, not from vague or underspecified wording. A good ambiguity has two SPECIFIC, CONCRETE readings — not "it's unclear what this means."
+    - The two interpretations MUST produce DIFFERENT outputs on common inputs. If they only differ on rare edge cases, the ambiguity is not useful.
+    - Keep the perturbed prompt similar length to the original — only change what's needed.
+
+    HANDLING EXAMPLES in the prompt (very important):
+    - If the original prompt contains doctest examples (lines with >>>) or input/output pairs, you MUST handle them carefully.
+    - REMOVE any examples where the two interpretations produce different outputs — these give away the answer.
+    - You MAY keep examples where both interpretations happen to produce the SAME output (e.g., trivial/edge cases).
+    - You MAY rewrite examples to use inputs where both interpretations agree.
+    - You MAY replace concrete examples with a vague placeholder like ">>> func(input)  # see description above".
+    - NEVER leave examples that unambiguously demonstrate one interpretation.
+
+    1. **perturbed_prompt**: Rewrite the prompt with {ambiguity_type} ambiguity. Must include function signature. Handle examples as described above.
+    2. **interpretation_a**: ONE sentence — the original intended meaning.
+    3. **interpretation_b**: ONE sentence — the new alternative meaning.
+
+    ## Example
+
+    {{"perturbed_prompt": "def merge_dicts(dict_a: dict, dict_b: dict) -> dict:\n    \"\"\"Merge dict_a into dict_b and return it.\n    If keys overlap, the value from dict_a takes precedence.\n    \"\"\"", "interpretation_a": "Return dict_b after merging dict_a into it.", "interpretation_b": "'it' refers to dict_a — return dict_a enriched with dict_b's non-overlapping keys."}}
+
+    Now respond with ONLY the JSON object:
+
+# ── Phase 1 Step 1.2: Entropy Gate (Stage 2) ──────────────────────────────
+
+entropy_gate:
+
+  system: |
+    You are a software engineer reading a coding prompt. You will be shown a prompt and two possible interpretations of what it asks for.
+
+    Your job: decide which interpretation the prompt MOST NATURALLY conveys to a typical developer reading it for the first time. Do not overthink — go with your first instinct.
+
+    You MUST respond with ONLY a single valid JSON object. No explanation, no markdown fences.
+
+    ## Required JSON Schema
+
+    {{
+      "type": "object",
+      "required": ["choice", "confidence"],
+      "properties": {{
+        "choice": {{ "type": "string", "enum": ["X", "Y"], "description": "Which interpretation the prompt most naturally conveys." }},
+        "confidence": {{ "type": "string", "enum": ["high", "medium", "low"], "description": "How confident you are in your choice." }}
+      }},
+      "additionalProperties": false
+    }}
+
+  task: |
+    ## Coding Prompt
+
+    ```
+    {perturbed_prompt}
+    ```
+
+    ## Two Possible Interpretations
+
+    **Interpretation X**: {interpretation_x}
+
+    **Interpretation Y**: {interpretation_y}
+
+    ## Question
+
+    Which interpretation does this prompt MOST NATURALLY convey? A typical developer reading this prompt for the first time — which interpretation would they assume?
+
+    Respond with ONLY the JSON object: {{"choice": "X" or "Y", "confidence": "high/medium/low"}}
+
+# ── Phase 1 Step 1.2: Test Generation (Stage 3) ───────────────────────────
+
+test_generation:
+
+  system: |
+    You are an expert Python test engineer. You will be given a coding prompt that contains a linguistic ambiguity, along with two interpretations.
+
+    Your job is to:
+    1. Write a reference solution for interpretation B (the alternative meaning).
+    2. Write a test suite for interpretation B.
+
+    The original benchmark provides the canonical solution (interpretation A) and its tests.
+
+    Requirements:
+    - ref_solution_b must be a COMPLETE, CORRECT implementation of interpretation B.
+    - test_b must PASS against ref_solution_b and FAIL against the canonical solution (interpretation A).
+    - The canonical solution must FAIL against test_b — that is what makes it discriminative.
+
+    You MUST respond with ONLY a single valid JSON object. No explanation, no markdown fences.
+
+    ## Required JSON Schema
+
+    {{
+      "type": "object",
+      "required": ["ref_solution_b", "test_b"],
+      "properties": {{
+        "ref_solution_b": {{ "type": "string", "description": "Complete executable Python solution implementing interpretation B. Must be self-contained." }},
+        "test_b": {{ "type": "string", "description": "Complete executable Python test code for interpretation B. At least 3 assertions." }}
+      }},
+      "additionalProperties": false
+    }}
+
+  task: |
+    ## Ambiguous Coding Prompt
+
+    ```
+    {perturbed_prompt}
+    ```
+
+    ## Canonical Solution (implements interpretation A)
+
+    ```
+    {canonical_solution}
+    ```
+
+    ## Original Tests (for interpretation A — use as style reference)
+
+    ```
+    {test_code}
+    ```
+
+    ## Two Interpretations
+
+    **Interpretation A** (original meaning): {interpretation_a}
+
+    **Interpretation B** (alternative meaning): {interpretation_b}
+
+    ## Instructions
+
+    Write **ref_solution_b** and **test_b**:
+
+    **ref_solution_b** — A complete Python solution for interpretation B:
+    - Must be self-contained and executable.
+    - Must implement interpretation B's behavior, NOT interpretation A.
+    - Must use the same function signature as the canonical solution.
+    {entry_point_instruction}
+
+    **test_b** — A test suite that verifies interpretation B:
+    - Must PASS when run against ref_solution_b.
+    - Must FAIL when run against the canonical solution (interpretation A).
+    - Use the original tests as a style guide — match their structure and naming.
+    - At least 3 assertions that specifically test interpretation B's behavior.
+    - Do NOT include the solution code in the tests — only assertions.
+
+    CRITICAL for discriminative tests:
+    - You MUST choose test inputs where ref_solution_b produces DIFFERENT outputs from the canonical solution. If the two solutions happen to agree on an input, that input is USELESS for test_b.
+    - First mentally run both solutions on candidate inputs. Only use inputs where they diverge.
+    - Verify: for each assertion in test_b, the canonical solution (interpretation A) must produce a DIFFERENT value than what test_b expects. If not, that assertion will not catch the difference.
+    - Common pitfall: trivial inputs (empty lists, single elements, zeros) often give the same result for both interpretations. Use non-trivial inputs that exercise the difference.
+
+    Respond with ONLY the JSON object:
+
 # ── Phase 2: Inference (placeholder) ────────────────────────────────────────
 
 # inference:

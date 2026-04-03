@@ -31,3 +31,92 @@ anchor_selection:
 
   # Output
   output_dir: data/intermediate/anchor_selection
+
+# ── Phase 1 Step 1.2: Perturbation Generation (Stage 1) ────────────────────
+perturbation:
+  # SOTA models that generate ambiguous prompts + interpretations
+  generator_models:
+    - gpt-5.4
+    - claude-sonnet
+    - gemini-3.1-pro
+
+  # LLM call parameters
+  temperature: 0.7
+  max_tokens: 8192              # gemini-3.1-pro uses ~8k tokens (incl. reasoning)
+
+  # Selection criteria — which anchors to perturb
+  min_feasibility_score: 2.0    # minimum avg feasibility score
+  risk_level: low               # filter by risk level (low first)
+  max_tasks: 100                # max tasks to process per run
+
+  # Concurrency
+  max_workers: 8
+
+  # Output
+  output_dir: data/intermediate/perturbation
+
+# ── Phase 1 Step 1.2: Entropy Gate (Stage 2) ──────────────────────────────
+entropy_gate:
+  # All judge models from anchor selection
+  judge_models:
+    - gpt-5.4-mini
+    - claude-haiku
+    - gemini-3-flash
+    - deepseek-v3.2
+    - qwen-3.5
+
+  judges_per_task: 5           # all 5 judges vote on each perturbation
+
+  # LLM call parameters
+  temperature: 0.0              # deterministic for reproducibility
+  max_tokens: 128               # just {"choice": "X", "confidence": "high"}
+
+  # Entropy threshold for passing the gate
+  # H >= 0.72 means at least a 4-1 split (allows some agreement)
+  # H >= 0.97 means at least a 3-2 split (strict)
+  min_entropy: 0.72
+
+  # Concurrency
+  max_workers: 12
+
+  # Output
+  output_dir: data/intermediate/entropy_gate
+
+# ── Phase 1 Step 1.2: Test Generation (Stage 3) ──────────────────────────
+test_generation:
+  # Use the same SOTA models that generated the perturbation
+  # Each passed generation's test_b is written by its own generator model
+  use_generator_model: true
+
+  # Fallback model if use_generator_model is false
+  model: gpt-5.4
+
+  # LLM call parameters
+  temperature: 0.0              # deterministic for reproducibility
+  max_tokens: 8192              # tests can be verbose
+
+  # Concurrency
+  max_workers: 8
+
+  # Output
+  output_dir: data/intermediate/test_generation
+
+# ── Phase 1 Step 1.2: Exclusivity Gate (Stage 4) ─────────────────────────
+exclusivity_gate:
+  # Sandbox execution settings
+  timeout_s: 30                 # per-execution timeout
+  mem_limit: "256m"
+
+  # Docker images per source
+  # python:3.11-slim for HumanEval/MBPP (no extra deps)
+  # DS1000 needs pandas, numpy, scipy, matplotlib, sklearn
+  # Build it: docker build -t ambicode-ds1000 -f docker/ds1000.Dockerfile .
+  docker_images:
+    default: "python:3.11-slim"
+    ds1000: "ambicode-ds1000"
+
+  # Concurrency (Docker containers — keep moderate)
+  max_workers: 4
+
+  # Output
+  output_dir: data/intermediate/exclusivity_gate
