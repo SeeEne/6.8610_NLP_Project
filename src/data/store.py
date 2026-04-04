@@ -112,11 +112,21 @@ class BenchmarkStore:
     def load_local(cls, data_dir: str | Path) -> BenchmarkStore:
         """Load tasks from previously saved JSONL files.
 
-        Reads all *.jsonl files in data_dir.
+        Reads all *.jsonl files in data_dir. When both ds1000.jsonl and
+        ds1000_normalized.jsonl exist, only the normalized version is loaded
+        (it uses the same task_ids but in concatenation-friendly format).
         """
         store = cls()
         data_dir = Path(data_dir)
-        for path in sorted(data_dir.glob("*.jsonl")):
+
+        paths = sorted(data_dir.glob("*.jsonl"))
+
+        # Prefer normalized DS1000 over raw when both exist
+        has_normalized = any(p.name == "ds1000_normalized.jsonl" for p in paths)
+        if has_normalized:
+            paths = [p for p in paths if p.name != "ds1000.jsonl"]
+
+        for path in paths:
             with open(path, "r", encoding="utf-8") as f:
                 for line in f:
                     line = line.strip()

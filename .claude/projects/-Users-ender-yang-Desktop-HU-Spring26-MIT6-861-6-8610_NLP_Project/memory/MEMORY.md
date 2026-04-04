@@ -3,3 +3,4 @@
 - [Separate stage files](feedback_separate_stages.md) — Each stage in its own .py, shared code in util/
 - [Keep tests rigorous](feedback_keep_tests_rigorous.md) — Don't shorten test suites to save tokens
 - [Project status](project_status.md) — 4-stage pipeline built, 14 verified items, DS1000 + HumanEval blockers
+- [Let user run pipeline](feedback_let_user_run_pipeline.md) — Provide pipeline commands, let user execute them

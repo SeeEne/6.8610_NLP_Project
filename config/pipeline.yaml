@@ -93,7 +93,7 @@ test_generation:
 
   # LLM call parameters
   temperature: 0.0              # deterministic for reproducibility
-  max_tokens: 8192              # tests can be verbose
+  max_tokens: 16384    # tests can be verbose
 
   # Concurrency
   max_workers: 8
