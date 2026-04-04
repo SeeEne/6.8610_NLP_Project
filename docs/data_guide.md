@@ -52,6 +52,30 @@ print(task.test_code)            # unit tests
 
 ---
 
+## Step 1.1a — DS-1000 Normalization
+
+DS-1000 tasks use a harness format (`exec_context` with `[insert]` placeholder) incompatible with simple `exec(code + test)`. The normalization step converts them to a concatenation-friendly format.
+
+```bash
+python scripts/normalize_ds1000.py
+python scripts/normalize_ds1000.py --verify 10   # verify in Docker sandbox
+```
+
+Creates `data/raw/ds1000_normalized.jsonl` (845 tasks, Matplotlib excluded).
+
+**What changes:**
+- `canonical_solution`: original code fragment wrapped as `__SOLUTION__ = r"""..."""`
+- `test_code`: original harness preserved verbatim + `test_execution(__SOLUTION__)` appended
+- `metadata`: adds `original_solution` and `exec_context_imports`
+
+**What stays the same:**
+- `prompt`: unchanged (downstream sees original wording)
+- `task_id`, `source`, `library`: unchanged
+
+When both `ds1000.jsonl` and `ds1000_normalized.jsonl` exist in `data/raw/`, `BenchmarkStore.load_local()` automatically prefers the normalized version.
+
+---
+
 ## Step 1.1b — Anchor Selection Pipeline
 
 The automated anchor selection pipeline scores and ranks all candidate tasks to help the team select the best 50 anchors. Each task is evaluated by multiple LLM judges.
@@ -326,19 +350,55 @@ result_a, result_b = sandbox.run_dual_blind(
 
 ---
 
-## Target Distribution
+## Scaled Pipeline
 
-The final benchmark should contain **50 items**:
+The scaled pipeline (`scripts/run_scaled_pipeline.py`) automates the full benchmark construction process with 10 parallel workers.
 
-| Ambiguity Type | Count | Risk Levels |
-|---|---|---|
-| Coreferential | 10 | Mix of high/low |
-| Syntactic (Attachment) | 10 | Mix of high/low |
-| Scopal | 10 | Mix of high/low |
-| Collective/Distributive | 10 | Mix of high/low |
-| Elliptical | 10 | Mix of high/low |
+### How It Works
 
-All 50 must pass both Quality Gate Stage A and Stage B.
+Each worker handles one `(ambiguity_type, risk_level)` combination:
+1. Pops the highest-feasibility task from its queue
+2. Runs Stages 1-4 for that task
+3. If Stage 4 passes, stores the item in the benchmark
+4. If not, pops the next task
+5. Stops when target reached or queue exhausted
+
+### Running
+
+```bash
+# Dry run — show worker allocations
+python scripts/run_scaled_pipeline.py --dry-run
+
+# Full run (default: 7 low-risk + 3 high-risk per type = 50 target)
+python scripts/run_scaled_pipeline.py
+
+# Custom targets
+python scripts/run_scaled_pipeline.py --low-target 7 --high-target 3
+
+# Fewer parallel workers (reduce API load)
+python scripts/run_scaled_pipeline.py --max-workers 5
+```
+
+### Output
+
+Appends passing items to `data/benchmark/benchmark.jsonl`. Each worker writes intermediate results to `data/intermediate/scaled_pipeline/worker_NN_type_risk/`.
+
+---
+
+## Benchmark Distribution
+
+The final benchmark contains **62 items**:
+
+| Ambiguity Type | Low | High | Total |
+|---|---|---|---|
+| Coreferential | 8 | 3 | 11 |
+| Syntactic | 10 | 4 | 14 |
+| Scopal | 5 | 3 | 8 |
+| Collective/Distributive | 16 | 3 | 19 |
+| Elliptical | 7 | 3 | 10 |
+| **Total** | **46** | **16** | **62** |
+
+All 62 pass both Quality Gate Stage A (sandbox exclusivity) and Stage B (entropy gate).
 
 ---
 
@@ -346,18 +406,26 @@ All 50 must pass both Quality Gate Stage A and Stage B.
 
 | Path | Description |
 |---|---|
-| `config/models.yaml` | Model alias → OpenRouter ID mapping |
+| `config/models.yaml` | Model alias -> OpenRouter ID mapping |
 | `config/pipeline.yaml` | Pipeline runtime config (judge models, concurrency, tokens) |
-| `config/prompts.yaml` | All prompts (system + task) — single source of truth |
+| `config/prompts.yaml` | All prompts (system + task) -- single source of truth |
 | `src/data/model.py` | `BenchmarkTask` + `BenchmarkItem` dataclasses |
 | `src/data/loaders.py` | HuggingFace loaders for HumanEval, MBPP, DS-1000 |
-| `src/data/store.py` | `BenchmarkStore` — unified load/filter/save interface |
+| `src/data/ds1000_normalizer.py` | DS-1000 harness-to-concatenation format converter |
+| `src/data/store.py` | `BenchmarkStore` -- unified load/filter/save interface |
 | `src/pipeline/prompts.py` | `get_prompt()`, `render_prompt()`, `load_pipeline_config()` |
-| `src/pipeline/anchor_selection.py` | Anchor scoring pipeline (combined eval, aggregation, parallel runner) |
-| `src/util/llm.py` | `LLMClient` — OpenRouter wrapper |
-| `src/util/sandbox.py` | `Sandbox` — Docker-based Python execution |
+| `src/pipeline/anchor_selection.py` | Anchor scoring pipeline |
+| `src/pipeline/stage1_perturbation.py` | Stage 1: perturbation generation |
+| `src/pipeline/stage2_entropy_gate.py` | Stage 2: entropy gate |
+| `src/pipeline/stage3_test_generation.py` | Stage 3: ref_solution_b + test_b generation |
+| `src/pipeline/stage4_exclusivity_gate.py` | Stage 4: 2x2 sandbox exclusivity |
+| `src/util/llm.py` | `LLMClient` -- OpenRouter wrapper |
+| `src/util/sandbox.py` | `Sandbox` -- Docker-based Python execution |
 | `scripts/download_data.py` | CLI: download raw benchmarks |
+| `scripts/normalize_ds1000.py` | CLI: normalize DS-1000 tasks |
 | `scripts/run_anchor_selection.py` | CLI: run anchor selection pipeline |
-| `data/raw/*.jsonl` | Downloaded benchmark data (gitignored) |
-| `data/intermediate/anchor_selection/anchor_results.jsonl` | Anchor scoring results |
-| `data/benchmark/benchmark.jsonl` | Final Phase 1 deliverable (example included) |
+| `scripts/run_perturbation.py` | CLI: run 4-stage perturbation pipeline |
+| `scripts/run_scaled_pipeline.py` | CLI: scaled pipeline (10 parallel workers) |
+| `data/raw/*.jsonl` | Downloaded + normalized benchmark data (gitignored) |
+| `data/intermediate/` | Pipeline intermediate outputs (gitignored) |
+| `data/benchmark/benchmark.jsonl` | **Final benchmark (62 items)** |

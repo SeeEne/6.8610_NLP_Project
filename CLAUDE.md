@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**AmbiCode-Eval** — a micro-benchmark of 50 tasks measuring how LLMs handle linguistically ambiguous coding prompts. Quantifies the "Ambiguity Tax" (pass@k drop from ambiguity injection) and classifies model behavior into Silent Assumption / Explicit Assumption / Active Clarification.
+**AmbiCode-Eval** — a benchmark of 62 tasks measuring how LLMs handle linguistically ambiguous coding prompts. Quantifies the "Ambiguity Tax" (pass@k drop from ambiguity injection) and classifies model behavior into Silent Assumption / Explicit Assumption / Active Clarification.
 
 Target models: GPT, Claude, Gemini, DeepSeek, Qwen — all called via OpenRouter.
 
@@ -27,6 +27,7 @@ src/
 ├── data/
 │   ├── model.py        # BenchmarkTask + BenchmarkItem dataclasses
 │   ├── loaders.py      # Per-source loaders (HumanEval, MBPP, DS-1000) via HuggingFace
+│   ├── ds1000_normalizer.py  # DS-1000 harness → concatenation format converter
 │   └── store.py        # BenchmarkStore — load, filter, save/reload from JSONL
 ├── pipeline/
 │   ├── prompts.py      # Prompt loader — reads from config/prompts.yaml
@@ -47,8 +48,10 @@ config/
 └── prompts.yaml        # All system/task prompts (single source of truth)
 scripts/
 ├── download_data.py    # Download all benchmarks to data/raw/
+├── normalize_ds1000.py # Normalize DS-1000 tasks for concatenation execution
 ├── run_anchor_selection.py  # Run anchor selection pipeline
-└── run_perturbation.py      # Run 4-stage perturbation pipeline
+├── run_perturbation.py      # Run 4-stage perturbation pipeline
+└── run_scaled_pipeline.py   # Scaled pipeline — 10 parallel workers → 50+ items
 docker/
 └── ds1000.Dockerfile   # Docker image with data science packages for DS1000
 docs/
@@ -75,6 +78,7 @@ data/
 - `BenchmarkItem` — extends with perturbation fields + quality gate (Phase 1 final deliverable)
 - `BenchmarkStore` — in-memory store with `filter(source=, library=)`, `save()` / `load_local()` JSONL
 - Loaders normalise HumanEval (164), MBPP-sanitized (257), DS-1000 (1000) into `BenchmarkTask`
+- `ds1000_normalizer` — converts DS-1000 harness format to concatenation-friendly format (845 non-Matplotlib tasks)
 
 ### Pipeline (`src/pipeline/`)
 
@@ -110,11 +114,10 @@ data/
 
 ## Current Status
 
-- **Phase 1 Step 1.1 (Raw Data)**: DONE — 1,421 tasks downloaded to `data/raw/`
-- **Phase 1 Step 1.1b (Anchor Selection)**: DONE — 1,421 tasks scored in `data/intermediate/anchor_selection/`
-- **Phase 1 Steps 1.2–1.5 (Perturbation Pipeline)**: IN PROGRESS — 4-stage automated pipeline built
-  - 14 verified benchmark items from MBPP in `data/benchmark/benchmark.jsonl`
-  - DS1000 sandbox adapter needed (blocks high-risk items + scopal/elliptical types)
-  - HumanEval has 0% Stage 4 pass rate (docstring examples + thorough tests block ambiguity)
+- **Phase 1 (Benchmark Construction)**: DONE — 62 verified items in `data/benchmark/benchmark.jsonl`
+  - Sources: MBPP (26), DS-1000 (36)
+  - All 5 ambiguity types and both risk levels represented
+  - DS-1000 normalization done (845 tasks, Matplotlib excluded)
+  - Scaled pipeline built (`scripts/run_scaled_pipeline.py`)
   - See `docs/project_status.md` for full details
 - **Phases 2–5**: NOT STARTED — infrastructure (LLM client, sandbox) is ready

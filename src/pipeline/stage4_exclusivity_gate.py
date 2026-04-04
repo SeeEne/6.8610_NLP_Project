@@ -194,7 +194,11 @@ def run_stage4(
         # Build complete executable code from prompt + solution
         # HumanEval: prompt has function sig + docstring, solution has the body
         # MBPP: solution is self-contained
-        # DS1000: solution is self-contained but test_code has setup (imports, df, etc.)
+        # DS1000 (normalized): ref_a is __SOLUTION__ wrapper, test_a is harness;
+        #   Stage 3 generates self-contained ref_b and test_b.
+        #   Cross-format pairs need adaptation:
+        #     ref_a × test_b: use original code fragment (not __SOLUTION__ wrapper)
+        #     ref_b × test_a: wrap ref_b as __SOLUTION__ for the harness
         if task.source == "humaneval":
             ref_a = task.prompt + task.canonical_solution
         else:
@@ -204,9 +208,46 @@ def run_stage4(
         test_a = task.test_code
         test_b = item.test_b
 
+        if task.source == "ds1000" and task.metadata.get("normalized"):
+            from src.data.ds1000_normalizer import _wrap_solution_as_string
+
+            # ref_a × test_b: wrap original solution with imports + try/except
+            # so function defs survive even if inline execution crashes on
+            # undefined variables (e.g. df, X). test_b then calls the function.
+            imports = task.metadata.get("exec_context_imports", "")
+            original_sol = task.metadata.get("original_solution", "")
+            ref_a_for_test_b = (
+                f"{imports}\n\n"
+                f"try:\n"
+                + "".join(f"    {ln}\n" for ln in original_sol.split("\n"))
+                + "except:\n"
+                + "    pass\n"
+            )
+            # ref_b × test_a: wrap ref_b as __SOLUTION__ for the harness
+            ref_b_for_test_a = _wrap_solution_as_string(item.ref_solution_b)
+
         try:
             sb = get_sandbox(task.source)
-            matrix = verify_exclusivity(sb, ref_a, ref_b, test_a, test_b, timeout_s)
+            if task.source == "ds1000" and task.metadata.get("normalized"):
+                # Run each pair with the correctly formatted ref
+                r1 = sb.run(ref_a, test_a, timeout_s=timeout_s)           # __SOLUTION__ + harness
+                r2 = sb.run(ref_a_for_test_b, test_b, timeout_s=timeout_s) # original fragment + self-contained test
+                r3 = sb.run(ref_b_for_test_a, test_a, timeout_s=timeout_s) # wrapped ref_b + harness
+                r4 = sb.run(ref_b, test_b, timeout_s=timeout_s)           # self-contained + self-contained
+                passed = r1.passed and not r2.passed and not r3.passed and r4.passed
+                matrix = {
+                    "ref_a_test_a": r1.passed,
+                    "ref_a_test_b": r2.passed,
+                    "ref_b_test_a": r3.passed,
+                    "ref_b_test_b": r4.passed,
+                    "ref_a_test_a_stderr": r1.stderr[:500],
+                    "ref_a_test_b_stderr": r2.stderr[:500],
+                    "ref_b_test_a_stderr": r3.stderr[:500],
+                    "ref_b_test_b_stderr": r4.stderr[:500],
+                    "passed": passed,
+                }
+            else:
+                matrix = verify_exclusivity(sb, ref_a, ref_b, test_a, test_b, timeout_s)
         except Exception as e:
             result = ExclusivityResult(
                 task_id=item.task_id,

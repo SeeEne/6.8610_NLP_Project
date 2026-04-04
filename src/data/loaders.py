@@ -6,6 +6,9 @@ All downloads are handled by HuggingFace `datasets` (cached locally).
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 from datasets import load_dataset
 
 from src.data.model import BenchmarkTask
@@ -102,4 +105,29 @@ def load_ds1000() -> list[BenchmarkTask]:
                 "perturbation_origin_id": metadata.get("perturbation_origin_id"),
             },
         ))
+    return tasks
+
+
+def load_ds1000_normalized(
+    path: str | Path = "data/raw/ds1000_normalized.jsonl",
+) -> list[BenchmarkTask]:
+    """Load normalized DS-1000 tasks from JSONL.
+
+    These are DS-1000 tasks converted to concatenation-friendly format by
+    scripts/normalize_ds1000.py. Execution model matches MBPP/HumanEval:
+    exec(canonical_solution + test_code) works directly.
+
+    Matplotlib tasks are excluded (image comparison not convertible).
+    """
+    path = Path(path)
+    if not path.exists():
+        raise FileNotFoundError(
+            f"{path} not found. Run: python scripts/normalize_ds1000.py"
+        )
+    tasks = []
+    with open(path) as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                tasks.append(BenchmarkTask.from_dict(json.loads(line)))
     return tasks

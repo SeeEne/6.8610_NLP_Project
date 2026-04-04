@@ -83,12 +83,34 @@ def generate_ref_and_test(
             f"matching the original signature."
         )
 
+    # For normalized DS1000 tasks, show the original code fragment (not the
+    # __SOLUTION__ wrapper) so the LLM understands the actual code pattern,
+    # and instruct it to generate fully self-contained ref_solution_b / test_b.
+    canonical_solution = task.canonical_solution
+    test_code = task.test_code
+    if task.source == "ds1000" and task.metadata.get("normalized"):
+        canonical_solution = task.metadata.get(
+            "original_solution", canonical_solution
+        )
+        entry_point_instruction += (
+            "\n    IMPORTANT — DS1000 FORMAT:"
+            "\n    The canonical solution above is a CODE FRAGMENT that relies on"
+            " setup variables (imports, DataFrames, arrays, etc.) from a test harness."
+            "\n    Your ref_solution_b and test_b MUST be FULLY SELF-CONTAINED:"
+            "\n    - ref_solution_b: include ALL imports and define ALL input"
+            " variables needed. Do NOT reference undefined variables like df, X,"
+            " data, etc."
+            "\n    - test_b: include ALL imports, create test data inline, and use"
+            " assert statements. Must be runnable as:"
+            " exec(ref_solution_b + '\\n' + test_b)."
+        )
+
     system = get_prompt("test_generation.system")
     prompt = render_prompt(
         "test_generation.task",
         perturbed_prompt=perturbed_prompt,
-        canonical_solution=task.canonical_solution,
-        test_code=task.test_code,
+        canonical_solution=canonical_solution,
+        test_code=test_code,
         interpretation_a=interpretation_a,
         interpretation_b=interpretation_b,
         entry_point_instruction=entry_point_instruction,
